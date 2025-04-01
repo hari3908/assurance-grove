@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, X, Trash } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -89,19 +89,53 @@ const testCasesData = [
   },
 ];
 
+// Interface for a test step
+interface TestStep {
+  id: number;
+  description: string;
+  expectedResult: string;
+}
+
 export default function TestCases() {
   const [testCases, setTestCases] = useState(testCasesData);
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   
+  // New state for test steps
+  const [testSteps, setTestSteps] = useState<TestStep[]>([
+    { id: 1, description: "", expectedResult: "" }
+  ]);
+  
   const [newTestCase, setNewTestCase] = useState({
     title: "",
     description: "",
-    steps: "",
-    expectedResult: "",
     priority: "Medium",
     type: "Functional",
   });
+  
+  // Add a new test step
+  const addTestStep = () => {
+    const newId = testSteps.length + 1;
+    setTestSteps([...testSteps, { id: newId, description: "", expectedResult: "" }]);
+  };
+  
+  // Update a test step
+  const updateTestStep = (id: number, field: 'description' | 'expectedResult', value: string) => {
+    const updatedSteps = testSteps.map(step => 
+      step.id === id ? { ...step, [field]: value } : step
+    );
+    setTestSteps(updatedSteps);
+  };
+  
+  // Remove a test step
+  const removeTestStep = (id: number) => {
+    if (testSteps.length <= 1) {
+      toast.error("Test case must have at least one step");
+      return;
+    }
+    const updatedSteps = testSteps.filter(step => step.id !== id);
+    setTestSteps(updatedSteps);
+  };
   
   const filteredTestCases = testCases.filter((testCase) =>
     testCase.title.toLowerCase().includes(searchTerm.toLowerCase())
@@ -110,6 +144,13 @@ export default function TestCases() {
   const handleCreateTestCase = () => {
     if (!newTestCase.title.trim()) {
       toast.error("Test case title is required");
+      return;
+    }
+    
+    // Validate test steps
+    const invalidSteps = testSteps.filter(step => !step.description.trim());
+    if (invalidSteps.length > 0) {
+      toast.error("All test steps must have a description");
       return;
     }
     
@@ -126,14 +167,16 @@ export default function TestCases() {
     };
     
     setTestCases([...testCases, createdTestCase]);
+    
+    // Reset form
     setNewTestCase({
       title: "",
       description: "",
-      steps: "",
-      expectedResult: "",
       priority: "Medium",
       type: "Functional",
     });
+    
+    setTestSteps([{ id: 1, description: "", expectedResult: "" }]);
     setDialogOpen(false);
     toast.success("Test case created successfully");
   };
@@ -171,14 +214,14 @@ export default function TestCases() {
               New Test Case
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Test Case</DialogTitle>
               <DialogDescription>
                 Add details for your new test case
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
+            <div className="grid gap-6 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="title" className="text-right">
                   Title
@@ -201,29 +244,61 @@ export default function TestCases() {
                   onChange={(e) => setNewTestCase({ ...newTestCase, description: e.target.value })}
                 />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="steps" className="text-right">
-                  Steps
-                </Label>
-                <Textarea
-                  id="steps"
-                  className="col-span-3"
-                  placeholder="1. Login to system&#10;2. Navigate to settings&#10;3. Click on profile"
-                  value={newTestCase.steps}
-                  onChange={(e) => setNewTestCase({ ...newTestCase, steps: e.target.value })}
-                />
+              
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-medium">Test Steps</h3>
+                  <Button type="button" onClick={addTestStep} variant="outline" size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Step
+                  </Button>
+                </div>
+                
+                {testSteps.map((step, index) => (
+                  <div key={step.id} className="border rounded-md p-4 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <h4 className="font-medium">Step {index + 1}</h4>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeTestStep(step.id)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Trash className="h-4 w-4 text-destructive" />
+                        <span className="sr-only">Remove step</span>
+                      </Button>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-4 gap-4">
+                        <Label htmlFor={`step-${step.id}`} className="text-right pt-2">
+                          Description
+                        </Label>
+                        <Textarea
+                          id={`step-${step.id}`}
+                          className="col-span-3"
+                          placeholder="Enter step description"
+                          value={step.description}
+                          onChange={(e) => updateTestStep(step.id, 'description', e.target.value)}
+                        />
+                      </div>
+                      <div className="grid grid-cols-4 gap-4">
+                        <Label htmlFor={`expected-${step.id}`} className="text-right pt-2">
+                          Expected Result
+                        </Label>
+                        <Textarea
+                          id={`expected-${step.id}`}
+                          className="col-span-3"
+                          placeholder="Enter expected result"
+                          value={step.expectedResult}
+                          onChange={(e) => updateTestStep(step.id, 'expectedResult', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="expected" className="text-right">
-                  Expected Result
-                </Label>
-                <Textarea
-                  id="expected"
-                  className="col-span-3"
-                  value={newTestCase.expectedResult}
-                  onChange={(e) => setNewTestCase({ ...newTestCase, expectedResult: e.target.value })}
-                />
-              </div>
+              
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="priority" className="text-right">
                   Priority
