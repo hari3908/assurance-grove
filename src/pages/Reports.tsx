@@ -22,6 +22,7 @@ import { Download, FileText } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import html2canvas from "html2canvas";
 
 // Sample data for reports
 const testResultsData = [
@@ -48,7 +49,7 @@ const executionTrendData = [
 ];
 
 export default function Reports() {
-  const exportAsPdf = () => {
+  const exportAsPdf = async () => {
     const doc = new jsPDF();
     
     // Add title
@@ -57,75 +58,140 @@ export default function Reports() {
     doc.setFontSize(11);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
     
-    // Add test results table
-    doc.setFontSize(14);
-    doc.text("Test Results by Sprint", 14, 45);
-    
     // Define a position variable to track vertical position in the document
-    let yPosition = 50;
+    let yPosition = 40;
     
-    // Create test results table
-    autoTable(doc, {
-      startY: yPosition,
-      head: [['Sprint', 'Passed', 'Failed', 'Blocked', 'Total']],
-      body: testResultsData.map(row => [
-        row.name, 
-        row.passed.toString(), 
-        row.failed.toString(), 
-        row.blocked.toString(),
-        (row.passed + row.failed + row.blocked).toString()
-      ]),
-      didDrawPage: (data) => {
-        yPosition = data.cursor.y;
+    // Try to capture charts
+    try {
+      // Capture the bar chart
+      const barChartElement = document.querySelector('#test-results-chart');
+      if (barChartElement) {
+        const barCanvas = await html2canvas(barChartElement as HTMLElement);
+        const barImgData = barCanvas.toDataURL('image/png');
+        doc.text("Test Results by Sprint", 14, yPosition);
+        yPosition += 10;
+        
+        // Add the chart image to PDF
+        const imgWidth = 180;
+        const imgHeight = (barCanvas.height * imgWidth) / barCanvas.width;
+        doc.addImage(barImgData, 'PNG', 14, yPosition, imgWidth, imgHeight);
+        yPosition += imgHeight + 15;
       }
-    });
-    
-    // Add spacing after the table
-    yPosition += 20;
-    
-    // Add status distribution table
-    doc.setFontSize(14);
-    doc.text("Test Status Distribution", 14, yPosition);
-    
-    yPosition += 5; // Add a small gap between title and table
-    
-    // Create status distribution table
-    autoTable(doc, {
-      startY: yPosition,
-      head: [['Status', 'Count', 'Percentage']],
-      body: statusDistributionData.map(row => {
-        const total = statusDistributionData.reduce((sum, item) => sum + item.value, 0);
-        const percentage = ((row.value / total) * 100).toFixed(1);
-        return [row.name, row.value.toString(), `${percentage}%`];
-      }),
-      didDrawPage: (data) => {
-        yPosition = data.cursor.y;
-      }
-    });
-    
-    // Add spacing after the table
-    yPosition += 20;
-    
-    // Add execution trend table
-    doc.setFontSize(14);
-    doc.text("Test Execution Trend", 14, yPosition);
-    
-    yPosition += 5; // Add a small gap between title and table
-    
-    // Create execution trend table
-    autoTable(doc, {
-      startY: yPosition,
-      head: [['Week', 'Tests Executed', 'Tests Automated', 'Automation %']],
-      body: executionTrendData.map(row => {
-        const automationPercentage = ((row.automated / row.executed) * 100).toFixed(1);
-        return [
+      
+      // Add test results table
+      doc.setFontSize(14);
+      doc.text("Test Results by Sprint - Data", 14, yPosition);
+      yPosition += 10;
+      
+      // Create test results table
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Sprint', 'Passed', 'Failed', 'Blocked', 'Total']],
+        body: testResultsData.map(row => [
           row.name, 
-          row.executed.toString(), 
-          row.automated.toString(), 
-          `${automationPercentage}%`
-        ];
-      })
-    });
+          row.passed.toString(), 
+          row.failed.toString(), 
+          row.blocked.toString(),
+          (row.passed + row.failed + row.blocked).toString()
+        ]),
+        didDrawPage: (data) => {
+          yPosition = data.cursor.y;
+        }
+      });
+      
+      // Check if we need a new page
+      if (yPosition > doc.internal.pageSize.height - 100) {
+        doc.addPage();
+        yPosition = 20;
+      } else {
+        yPosition += 20;
+      }
+      
+      // Capture the pie chart
+      const pieChartElement = document.querySelector('#status-distribution-chart');
+      if (pieChartElement) {
+        const pieCanvas = await html2canvas(pieChartElement as HTMLElement);
+        const pieImgData = pieCanvas.toDataURL('image/png');
+        doc.text("Test Status Distribution", 14, yPosition);
+        yPosition += 10;
+        
+        // Add the chart image to PDF
+        const imgWidth = 180;
+        const imgHeight = (pieCanvas.height * imgWidth) / pieCanvas.width;
+        doc.addImage(pieImgData, 'PNG', 14, yPosition, imgWidth, imgHeight);
+        yPosition += imgHeight + 15;
+      }
+      
+      // Add status distribution table
+      doc.setFontSize(14);
+      doc.text("Test Status Distribution - Data", 14, yPosition);
+      yPosition += 10;
+      
+      // Create status distribution table
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Status', 'Count', 'Percentage']],
+        body: statusDistributionData.map(row => {
+          const total = statusDistributionData.reduce((sum, item) => sum + item.value, 0);
+          const percentage = ((row.value / total) * 100).toFixed(1);
+          return [row.name, row.value.toString(), `${percentage}%`];
+        }),
+        didDrawPage: (data) => {
+          yPosition = data.cursor.y;
+        }
+      });
+      
+      // Check if we need a new page
+      if (yPosition > doc.internal.pageSize.height - 100) {
+        doc.addPage();
+        yPosition = 20;
+      } else {
+        yPosition += 20;
+      }
+      
+      // Capture the line chart
+      const lineChartElement = document.querySelector('#execution-trend-chart');
+      if (lineChartElement) {
+        const lineCanvas = await html2canvas(lineChartElement as HTMLElement);
+        const lineImgData = lineCanvas.toDataURL('image/png');
+        doc.text("Test Execution Trend", 14, yPosition);
+        yPosition += 10;
+        
+        // Add the chart image to PDF
+        const imgWidth = 180;
+        const imgHeight = (lineCanvas.height * imgWidth) / lineCanvas.width;
+        doc.addImage(lineImgData, 'PNG', 14, yPosition, imgWidth, imgHeight);
+        yPosition += imgHeight + 15;
+      }
+      
+      // Add execution trend table
+      doc.setFontSize(14);
+      doc.text("Test Execution Trend - Data", 14, yPosition);
+      yPosition += 10;
+      
+      // Create execution trend table
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Week', 'Tests Executed', 'Tests Automated', 'Automation %']],
+        body: executionTrendData.map(row => {
+          const automationPercentage = ((row.automated / row.executed) * 100).toFixed(1);
+          return [
+            row.name, 
+            row.executed.toString(), 
+            row.automated.toString(), 
+            `${automationPercentage}%`
+          ];
+        })
+      });
+      
+    } catch (error) {
+      console.error("Error generating report with charts:", error);
+      toast({
+        title: "Error Generating Report",
+        description: "There was an issue including charts in your PDF. Still exporting tables.",
+        variant: "destructive",
+      });
+    }
     
     // Save the PDF
     doc.save("test-management-report.pdf");
@@ -160,7 +226,7 @@ export default function Reports() {
                 <CardTitle>Test Results by Sprint</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-80">
+                <div className="h-80" id="test-results-chart">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={testResultsData}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -182,7 +248,7 @@ export default function Reports() {
                 <CardTitle>Test Status Distribution</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-80">
+                <div className="h-80" id="status-distribution-chart">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -215,7 +281,7 @@ export default function Reports() {
               <CardTitle>Test Execution Trend</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-80">
+              <div className="h-80" id="execution-trend-chart">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={executionTrendData}>
                     <CartesianGrid strokeDasharray="3 3" />
