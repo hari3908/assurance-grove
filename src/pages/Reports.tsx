@@ -61,8 +61,12 @@ export default function Reports() {
     doc.setFontSize(14);
     doc.text("Test Results by Sprint", 14, 45);
     
-    const testResultsTable = autoTable(doc, {
-      startY: 50,
+    // Define a position variable to track vertical position in the document
+    let yPosition = 50;
+    
+    // Create test results table
+    autoTable(doc, {
+      startY: yPosition,
       head: [['Sprint', 'Passed', 'Failed', 'Blocked', 'Total']],
       body: testResultsData.map(row => [
         row.name, 
@@ -71,30 +75,46 @@ export default function Reports() {
         row.blocked.toString(),
         (row.passed + row.failed + row.blocked).toString()
       ]),
+      didDrawPage: (data) => {
+        yPosition = data.cursor.y;
+      }
     });
     
-    // Add status distribution table
-    const finalY1 = testResultsTable.finalY || 120;
-    doc.setFontSize(14);
-    doc.text("Test Status Distribution", 14, finalY1 + 20);
+    // Add spacing after the table
+    yPosition += 20;
     
-    const statusTable = autoTable(doc, {
-      startY: finalY1 + 25,
+    // Add status distribution table
+    doc.setFontSize(14);
+    doc.text("Test Status Distribution", 14, yPosition);
+    
+    yPosition += 5; // Add a small gap between title and table
+    
+    // Create status distribution table
+    autoTable(doc, {
+      startY: yPosition,
       head: [['Status', 'Count', 'Percentage']],
       body: statusDistributionData.map(row => {
         const total = statusDistributionData.reduce((sum, item) => sum + item.value, 0);
         const percentage = ((row.value / total) * 100).toFixed(1);
         return [row.name, row.value.toString(), `${percentage}%`];
       }),
+      didDrawPage: (data) => {
+        yPosition = data.cursor.y;
+      }
     });
     
-    // Add execution trend table
-    const finalY2 = statusTable.finalY || 220;
-    doc.setFontSize(14);
-    doc.text("Test Execution Trend", 14, finalY2 + 20);
+    // Add spacing after the table
+    yPosition += 20;
     
+    // Add execution trend table
+    doc.setFontSize(14);
+    doc.text("Test Execution Trend", 14, yPosition);
+    
+    yPosition += 5; // Add a small gap between title and table
+    
+    // Create execution trend table
     autoTable(doc, {
-      startY: finalY2 + 25,
+      startY: yPosition,
       head: [['Week', 'Tests Executed', 'Tests Automated', 'Automation %']],
       body: executionTrendData.map(row => {
         const automationPercentage = ((row.automated / row.executed) * 100).toFixed(1);
@@ -104,7 +124,7 @@ export default function Reports() {
           row.automated.toString(), 
           `${automationPercentage}%`
         ];
-      }),
+      })
     });
     
     // Save the PDF
