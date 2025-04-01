@@ -18,7 +18,7 @@ import {
 } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Download, FilePdf } from "lucide-react";
+import { Download, FileText } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -61,7 +61,7 @@ export default function Reports() {
     doc.setFontSize(14);
     doc.text("Test Results by Sprint", 14, 45);
     
-    autoTable(doc, {
+    const testResultsTable = autoTable(doc, {
       startY: 50,
       head: [['Sprint', 'Passed', 'Failed', 'Blocked', 'Total']],
       body: testResultsData.map(row => [
@@ -74,11 +74,12 @@ export default function Reports() {
     });
     
     // Add status distribution table
+    const finalY1 = testResultsTable.finalY || 120;
     doc.setFontSize(14);
-    doc.text("Test Status Distribution", 14, doc.lastAutoTable.finalY + 20);
+    doc.text("Test Status Distribution", 14, finalY1 + 20);
     
-    autoTable(doc, {
-      startY: doc.lastAutoTable.finalY + 25,
+    const statusTable = autoTable(doc, {
+      startY: finalY1 + 25,
       head: [['Status', 'Count', 'Percentage']],
       body: statusDistributionData.map(row => {
         const total = statusDistributionData.reduce((sum, item) => sum + item.value, 0);
@@ -88,11 +89,12 @@ export default function Reports() {
     });
     
     // Add execution trend table
+    const finalY2 = statusTable.finalY || 220;
     doc.setFontSize(14);
-    doc.text("Test Execution Trend", 14, doc.lastAutoTable.finalY + 20);
+    doc.text("Test Execution Trend", 14, finalY2 + 20);
     
     autoTable(doc, {
-      startY: doc.lastAutoTable.finalY + 25,
+      startY: finalY2 + 25,
       head: [['Week', 'Tests Executed', 'Tests Automated', 'Automation %']],
       body: executionTrendData.map(row => {
         const automationPercentage = ((row.automated / row.executed) * 100).toFixed(1);
@@ -119,7 +121,7 @@ export default function Reports() {
     <PageContainer title="Reports & Analytics">
       <div className="flex justify-end mb-6">
         <Button onClick={exportAsPdf}>
-          <FilePdf className="mr-2 h-4 w-4" />
+          <FileText className="mr-2 h-4 w-4" />
           Export as PDF
         </Button>
       </div>
