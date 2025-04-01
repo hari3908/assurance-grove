@@ -18,7 +18,10 @@ import {
 } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Download, FilePdf } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 // Sample data for reports
 const testResultsData = [
@@ -45,12 +48,79 @@ const executionTrendData = [
 ];
 
 export default function Reports() {
+  const exportAsPdf = () => {
+    const doc = new jsPDF();
+    
+    // Add title
+    doc.setFontSize(18);
+    doc.text("Test Management Report", 14, 22);
+    doc.setFontSize(11);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+    
+    // Add test results table
+    doc.setFontSize(14);
+    doc.text("Test Results by Sprint", 14, 45);
+    
+    autoTable(doc, {
+      startY: 50,
+      head: [['Sprint', 'Passed', 'Failed', 'Blocked', 'Total']],
+      body: testResultsData.map(row => [
+        row.name, 
+        row.passed.toString(), 
+        row.failed.toString(), 
+        row.blocked.toString(),
+        (row.passed + row.failed + row.blocked).toString()
+      ]),
+    });
+    
+    // Add status distribution table
+    doc.setFontSize(14);
+    doc.text("Test Status Distribution", 14, doc.lastAutoTable.finalY + 20);
+    
+    autoTable(doc, {
+      startY: doc.lastAutoTable.finalY + 25,
+      head: [['Status', 'Count', 'Percentage']],
+      body: statusDistributionData.map(row => {
+        const total = statusDistributionData.reduce((sum, item) => sum + item.value, 0);
+        const percentage = ((row.value / total) * 100).toFixed(1);
+        return [row.name, row.value.toString(), `${percentage}%`];
+      }),
+    });
+    
+    // Add execution trend table
+    doc.setFontSize(14);
+    doc.text("Test Execution Trend", 14, doc.lastAutoTable.finalY + 20);
+    
+    autoTable(doc, {
+      startY: doc.lastAutoTable.finalY + 25,
+      head: [['Week', 'Tests Executed', 'Tests Automated', 'Automation %']],
+      body: executionTrendData.map(row => {
+        const automationPercentage = ((row.automated / row.executed) * 100).toFixed(1);
+        return [
+          row.name, 
+          row.executed.toString(), 
+          row.automated.toString(), 
+          `${automationPercentage}%`
+        ];
+      }),
+    });
+    
+    // Save the PDF
+    doc.save("test-management-report.pdf");
+    
+    // Show success notification
+    toast({
+      title: "Report Downloaded",
+      description: "The PDF report has been saved to your device.",
+    });
+  };
+
   return (
     <PageContainer title="Reports & Analytics">
       <div className="flex justify-end mb-6">
-        <Button>
-          <Download className="mr-2 h-4 w-4" />
-          Export Reports
+        <Button onClick={exportAsPdf}>
+          <FilePdf className="mr-2 h-4 w-4" />
+          Export as PDF
         </Button>
       </div>
 
